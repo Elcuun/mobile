@@ -25,6 +25,7 @@ fun LogbookDetailScreen(
 ) {
     val entries by viewModel.getEntries(logbook.id).collectAsState(initial = emptyList())
     var selectedEntryForFeedback by remember { mutableStateOf<LogbookEntryEntity?>(null) }
+    var showDeleteConfirmDialog by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -41,6 +42,13 @@ fun LogbookDetailScreen(
                             imageVector = if (logbook.isClosed) Icons.Default.Lock else Icons.Default.LockOpen,
                             contentDescription = "Cerrar/Abrir Bitácora",
                             tint = if (logbook.isClosed) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
+                        )
+                    }
+                    IconButton(onClick = { showDeleteConfirmDialog = true }) {
+                        Icon(
+                            imageVector = Icons.Default.Delete,
+                            contentDescription = "Eliminar Bitácora",
+                            tint = MaterialTheme.colorScheme.error
                         )
                     }
                 }
@@ -94,6 +102,33 @@ fun LogbookDetailScreen(
                 }
             }
         }
+    }
+
+    if (showDeleteConfirmDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteConfirmDialog = false },
+            icon = { Icon(imageVector = Icons.Default.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
+            title = { Text("Eliminar Bitácora") },
+            text = { Text("¿Está seguro de que desea eliminar esta bitácora? Esta acción eliminará también todos los aportes asociados de los estudiantes.") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        viewModel.deleteLogbook(logbook.id) {
+                            showDeleteConfirmDialog = false
+                            onBack()
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                ) {
+                    Text("Eliminar")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteConfirmDialog = false }) {
+                    Text("Cancelar")
+                }
+            }
+        )
     }
 
     selectedEntryForFeedback?.let { entry ->

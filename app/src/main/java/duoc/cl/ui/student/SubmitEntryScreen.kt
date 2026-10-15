@@ -22,6 +22,7 @@ import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import com.google.android.gms.location.LocationServices
 import duoc.cl.data.local.LogbookEntity
+import duoc.cl.data.local.User
 import duoc.cl.viewmodel.StudentViewModel
 import java.io.File
 
@@ -29,6 +30,7 @@ import java.io.File
 @Composable
 fun SubmitEntryScreen(
     logbook: LogbookEntity,
+    currentUser: User?,
     viewModel: StudentViewModel,
     onBack: () -> Unit,
     onSuccess: () -> Unit
@@ -38,6 +40,12 @@ fun SubmitEntryScreen(
     val scrollState = rememberScrollState()
 
     var tempPhotoUri by remember { mutableStateOf<Uri?>(null) }
+
+    LaunchedEffect(currentUser) {
+        if (currentUser != null && formState.studentName.isBlank()) {
+            viewModel.onStudentNameChanged(currentUser.fullName)
+        }
+    }
 
     val cameraLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { success ->
         if (success) {

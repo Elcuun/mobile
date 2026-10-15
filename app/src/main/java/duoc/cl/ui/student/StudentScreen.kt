@@ -16,20 +16,34 @@ import androidx.compose.ui.unit.dp
 import duoc.cl.data.local.Course
 import duoc.cl.data.local.LogbookEntity
 import duoc.cl.data.local.Subject
+import duoc.cl.data.local.User
+import duoc.cl.ui.components.UserHeader
 import duoc.cl.viewmodel.StudentViewModel
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun StudentScreen(
     viewModel: StudentViewModel,
+    currentUser: User?,
+    onLogout: () -> Unit,
     onNavigateBack: () -> Unit,
     onOpenLogbook: (LogbookEntity) -> Unit
 ) {
     val courses by viewModel.courses.collectAsState(initial = emptyList())
     val subjects by viewModel.subjects.collectAsState(initial = emptyList())
 
+    val assignedCourse = remember(currentUser, courses) {
+        currentUser?.courseId?.let { cid -> courses.firstOrNull { it.id == cid } }
+    }
+
     var selectedCourse by remember { mutableStateOf<Course?>(null) }
     var selectedSubject by remember { mutableStateOf<Subject?>(null) }
+
+    LaunchedEffect(assignedCourse) {
+        if (assignedCourse != null) {
+            selectedCourse = assignedCourse
+        }
+    }
 
     val courseId = selectedCourse?.id ?: 0L
     val subjectId = selectedSubject?.id ?: 0L
@@ -58,27 +72,69 @@ fun StudentScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Text(
-                text = "Seleccione su Curso y Asignatura para registrar su aprendizaje:",
-                style = MaterialTheme.typography.bodyMedium
-            )
+            // User Session Header
+            if (currentUser != null) {
+                UserHeader(user = currentUser, onLogout = onLogout)
+            }
 
-            Text(text = "Curso:", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodySmall)
-            FlowRow(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                courses.forEach { course ->
-                    FilterChip(
-                        selected = selectedCourse == course,
-                        onClick = { selectedCourse = course },
-                        label = { Text(course.name) }
-                    )
+            // Course Display / Selection
+            if (assignedCourse != null) {
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = MaterialTheme.colorScheme.secondaryContainer,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier.padding(14.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Class,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSecondaryContainer
+                        )
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Column {
+                            Text(
+                                text = "Curso Asignado",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f)
+                            )
+                            Text(
+                                text = assignedCourse.name,
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSecondaryContainer
+                            )
+                        }
+                    }
+                }
+            } else {
+                Text(
+                    text = "Seleccione su Curso:",
+                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.bodySmall
+                )
+                FlowRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    courses.forEach { course ->
+                        FilterChip(
+                            selected = selectedCourse == course,
+                            onClick = { selectedCourse = course },
+                            label = { Text(course.name) }
+                        )
+                    }
                 }
             }
 
-            Text(text = "Asignatura:", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodySmall)
+            Text(
+                text = "Seleccione una Asignatura para ver las bitácoras:",
+                style = MaterialTheme.typography.bodyMedium
+            )
+
             FlowRow(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -100,9 +156,13 @@ fun StudentScreen(
                     .fillMaxWidth()
                     .weight(1f)
             ) {
-                if (selectedCourse == null || selectedSubject == null) {
+                if (selectedCourse == null) {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Text(text = "Por favor seleccione su curso y asignatura.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(text = "No hay curso asignado o seleccionado.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                } else if (selectedSubject == null) {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Text(text = "Por favor seleccione una asignatura para consultar bitácoras.", color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 } else {
                     Column(
@@ -110,7 +170,7 @@ fun StudentScreen(
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Text(
-                            text = "Bitácoras Disponibles",
+                            text = "Bitácoras en ${selectedCourse!!.name} - ${selectedSubject!!.name}",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold
                         )

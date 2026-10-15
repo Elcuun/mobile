@@ -9,6 +9,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.School
+import androidx.compose.material.icons.filled.SupervisorAccount
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -21,7 +22,8 @@ import androidx.compose.ui.unit.sp
 @Composable
 fun RoleSelectionScreen(
     onSelectTeacher: () -> Unit,
-    onSelectStudent: () -> Unit
+    onSelectStudent: () -> Unit,
+    onSelectApoderado: () -> Unit
 ) {
     var visible by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { visible = true }
@@ -67,7 +69,7 @@ fun RoleSelectionScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
 
-                    Spacer(modifier = Modifier.height(40.dp))
+                    Spacer(modifier = Modifier.height(36.dp))
 
                     ElevatedButton(
                         onClick = onSelectTeacher,
@@ -85,7 +87,7 @@ fun RoleSelectionScreen(
                         Text(text = "Ingresar como Docente", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
                     }
 
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(14.dp))
 
                     OutlinedButton(
                         onClick = onSelectStudent,
@@ -98,6 +100,21 @@ fun RoleSelectionScreen(
                         Icon(imageVector = Icons.Default.Person, contentDescription = null)
                         Spacer(modifier = Modifier.width(12.dp))
                         Text(text = "Ingresar como Estudiante", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                    }
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    OutlinedButton(
+                        onClick = onSelectApoderado,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(56.dp),
+                        shape = RoundedCornerShape(16.dp),
+                        border = BorderStroke(2.dp, MaterialTheme.colorScheme.secondary)
+                    ) {
+                        Icon(imageVector = Icons.Default.SupervisorAccount, contentDescription = null, tint = MaterialTheme.colorScheme.secondary)
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Text(text = "Ingresar como Apoderado", fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.secondary)
                     }
                 }
             }

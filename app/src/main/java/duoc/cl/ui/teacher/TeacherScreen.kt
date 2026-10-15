@@ -16,12 +16,16 @@ import androidx.compose.ui.unit.dp
 import duoc.cl.data.local.Course
 import duoc.cl.data.local.LogbookEntity
 import duoc.cl.data.local.Subject
+import duoc.cl.data.local.User
+import duoc.cl.ui.components.UserHeader
 import duoc.cl.viewmodel.TeacherViewModel
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun TeacherScreen(
     viewModel: TeacherViewModel,
+    currentUser: User?,
+    onLogout: () -> Unit,
     onNavigateBack: () -> Unit,
     onCreateLogbook: (Long, Long) -> Unit,
     onOpenLogbookDetail: (LogbookEntity) -> Unit
@@ -31,6 +35,8 @@ fun TeacherScreen(
 
     var selectedCourse by remember { mutableStateOf<Course?>(null) }
     var selectedSubject by remember { mutableStateOf<Subject?>(null) }
+
+    var logbookToDelete by remember { mutableStateOf<LogbookEntity?>(null) }
 
     val courseId = selectedCourse?.id ?: 0L
     val subjectId = selectedSubject?.id ?: 0L
@@ -69,6 +75,11 @@ fun TeacherScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
+            // User Session Header
+            if (currentUser != null) {
+                UserHeader(user = currentUser, onLogout = onLogout)
+            }
+
             Text(
                 text = "Seleccione Curso y Asignatura para gestionar las bitácoras mensuales:",
                 style = MaterialTheme.typography.bodyMedium
@@ -136,7 +147,11 @@ fun TeacherScreen(
                                 verticalArrangement = Arrangement.spacedBy(12.dp)
                             ) {
                                 items(logbooks) { logbook ->
-                                    LogbookItemCard(logbook = logbook, onClick = { onOpenLogbookDetail(logbook) })
+                                    LogbookItemCard(
+                                        logbook = logbook,
+                                        onClick = { onOpenLogbookDetail(logbook) },
+                                        onDelete = { logbookToDelete = logbook }
+                                    )
                                 }
                             }
                         }
@@ -145,10 +160,42 @@ fun TeacherScreen(
             }
         }
     }
+
+    // Confirmation Dialog for Deleting a Logbook
+    logbookToDelete?.let { logbook ->
+        AlertDialog(
+            onDismissRequest = { logbookToDelete = null },
+            icon = { Icon(imageVector = Icons.Default.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
+            title = { Text("Eliminar Bitácora") },
+            text = {
+                Text("¿Está seguro de que desea eliminar la bitácora '${logbook.title}'? Esta acción no se puede deshacer y eliminará todos los registros asociados de los estudiantes.")
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        viewModel.deleteLogbook(logbook.id)
+                        logbookToDelete = null
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                ) {
+                    Text("Eliminar")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { logbookToDelete = null }) {
+                    Text("Cancelar")
+                }
+            }
+        )
+    }
 }
 
 @Composable
-fun LogbookItemCard(logbook: LogbookEntity, onClick: () -> Unit) {
+fun LogbookItemCard(
+    logbook: LogbookEntity,
+    onClick: () -> Unit,
+    onDelete: () -> Unit
+) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -162,12 +209,30 @@ fun LogbookItemCard(logbook: LogbookEntity, onClick: () -> Unit) {
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(text = logbook.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                Badge(containerColor = if (logbook.isClosed) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.primaryContainer) {
-                    Text(
-                        text = if (logbook.isClosed) "Cerrada" else "Activa",
-                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                    )
+                Text(
+                    text = logbook.title,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.weight(1f)
+                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Badge(containerColor = if (logbook.isClosed) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.primaryContainer) {
+                        Text(
+                            text = if (logbook.isClosed) "Cerrada" else "Activa",
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(4.dp))
+                    IconButton(
+                        onClick = onDelete,
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Delete,
+                            contentDescription = "Eliminar Bitácora",
+                            tint = MaterialTheme.colorScheme.error
+                        )
+                    }
                 }
             }
             Spacer(modifier = Modifier.height(4.dp))

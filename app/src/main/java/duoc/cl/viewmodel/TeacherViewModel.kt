@@ -10,7 +10,7 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
 class TeacherViewModel(application: Application) : AndroidViewModel(application) {
-    private val repository = AppRepository.getInstance()
+    private val repository = AppRepository.getInstance(application)
 
     val courses = repository.courses
     val subjects = repository.subjects
@@ -100,6 +100,13 @@ class TeacherViewModel(application: Application) : AndroidViewModel(application)
             )
             _formState.value = LogbookFormState()
             onResult(true)
+        }
+    }
+
+    fun deleteLogbook(logbookId: Long, onResult: () -> Unit = {}) {
+        viewModelScope.launch {
+            repository.deleteLogbook(logbookId)
+            onResult()
         }
     }
 

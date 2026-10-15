@@ -9,7 +9,7 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
 class StudentViewModel(application: Application) : AndroidViewModel(application) {
-    private val repository = AppRepository.getInstance()
+    private val repository = AppRepository.getInstance(application)
 
     val courses = repository.courses
     val subjects = repository.subjects
