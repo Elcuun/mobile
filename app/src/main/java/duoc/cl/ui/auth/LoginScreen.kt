@@ -37,7 +37,7 @@ fun LoginScreen(
 
     val isTeacher = role == Role.PROFESOR
     val roleTitle = role.displayName
-    val defaultDemoEmail = if (isTeacher) "docente@duoc.cl" else "estudiante@duoc.cl"
+    val defaultDemoEmail = if (isTeacher) "docente@duoc.cl / docente2@duoc.cl" else "estudiante@duoc.cl / estudiante2@duoc.cl"
 
     Scaffold(
         topBar = {

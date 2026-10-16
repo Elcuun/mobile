@@ -19,6 +19,7 @@ import duoc.cl.viewmodel.TeacherViewModel
 fun CreateLogbookScreen(
     courseId: Long,
     subjectId: Long,
+    logbookId: Long = 0L,
     viewModel: TeacherViewModel,
     onBack: () -> Unit,
     onSuccess: () -> Unit
@@ -26,10 +27,20 @@ fun CreateLogbookScreen(
     val formState by viewModel.formState.collectAsState()
     val scrollState = rememberScrollState()
 
+    LaunchedEffect(logbookId) {
+        if (logbookId != 0L) {
+            viewModel.loadAndPrepareEditLogbook(logbookId)
+        } else {
+            viewModel.prepareCreateLogbook()
+        }
+    }
+
+    val isEditing = viewModel.isEditingLogbook
+
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Crear Bitácora Mensual") },
+                title = { Text(if (isEditing) "Editar Bitácora Mensual" else "Crear Bitácora Mensual") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(imageVector = Icons.Default.ArrowBack, contentDescription = "Volver")
@@ -47,7 +58,7 @@ fun CreateLogbookScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Text(
-                text = "Complete la información de la bitácora mensual para el curso y asignatura seleccionados.",
+                text = if (isEditing) "Modifique la información de la bitácora mensual." else "Complete la información de la bitácora mensual para el curso y asignatura seleccionados.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -143,7 +154,7 @@ fun CreateLogbookScreen(
 
             Button(
                 onClick = {
-                    viewModel.createLogbook(courseId, subjectId) { success ->
+                    viewModel.saveLogbook(courseId, subjectId) { success ->
                         if (success) onSuccess()
                     }
                 },
@@ -153,9 +164,15 @@ fun CreateLogbookScreen(
                     .height(56.dp),
                 shape = RoundedCornerShape(16.dp)
             ) {
-                Icon(imageVector = Icons.Default.Check, contentDescription = null)
+                Icon(
+                    imageVector = if (isEditing) Icons.Default.Save else Icons.Default.Check,
+                    contentDescription = null
+                )
                 Spacer(modifier = Modifier.width(8.dp))
-                Text(text = "Publicar Bitácora Mensual", fontWeight = FontWeight.Bold)
+                Text(
+                    text = if (isEditing) "Guardar Cambios" else "Publicar Bitácora Mensual",
+                    fontWeight = FontWeight.Bold
+                )
             }
         }
     }

@@ -122,7 +122,12 @@ fun AppNavigation() {
                 },
                 onNavigateBack = { navController.popBackStack() },
                 onCreateLogbook = { courseId, subjectId ->
+                    teacherViewModel.prepareCreateLogbook()
                     navController.navigate("create_logbook/$courseId/$subjectId")
+                },
+                onEditLogbook = { logbook ->
+                    teacherViewModel.prepareEditLogbook(logbook)
+                    navController.navigate("create_logbook/${logbook.courseId}/${logbook.subjectId}?logbookId=${logbook.id}")
                 },
                 onOpenLogbookDetail = { logbook ->
                     activeLogbookForTeacher = logbook
@@ -132,17 +137,23 @@ fun AppNavigation() {
         }
 
         composable(
-            route = "create_logbook/{courseId}/{subjectId}",
+            route = "create_logbook/{courseId}/{subjectId}?logbookId={logbookId}",
             arguments = listOf(
                 navArgument("courseId") { type = NavType.LongType },
-                navArgument("subjectId") { type = NavType.LongType }
+                navArgument("subjectId") { type = NavType.LongType },
+                navArgument("logbookId") {
+                    type = NavType.LongType
+                    defaultValue = 0L
+                }
             )
         ) { backStackEntry ->
             val courseId = backStackEntry.arguments?.getLong("courseId") ?: 0L
             val subjectId = backStackEntry.arguments?.getLong("subjectId") ?: 0L
+            val logbookId = backStackEntry.arguments?.getLong("logbookId") ?: 0L
             CreateLogbookScreen(
                 courseId = courseId,
                 subjectId = subjectId,
+                logbookId = logbookId,
                 viewModel = teacherViewModel,
                 onBack = { navController.popBackStack() },
                 onSuccess = { navController.popBackStack() }
@@ -154,7 +165,11 @@ fun AppNavigation() {
                 LogbookDetailScreen(
                     logbook = logbook,
                     viewModel = teacherViewModel,
-                    onBack = { navController.popBackStack() }
+                    onBack = { navController.popBackStack() },
+                    onEditLogbook = { lb ->
+                        teacherViewModel.prepareEditLogbook(lb)
+                        navController.navigate("create_logbook/${lb.courseId}/${lb.subjectId}?logbookId=${lb.id}")
+                    }
                 )
             }
         }

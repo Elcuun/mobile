@@ -14,7 +14,12 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import android.graphics.BitmapFactory
+import androidx.compose.foundation.Image
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -37,6 +42,8 @@ fun SubmitEntryScreen(
 ) {
     val context = LocalContext.current
     val formState by viewModel.entryFormState.collectAsState()
+    val isEditingEntry = viewModel.isEditingEntry
+    val entries by viewModel.getEntriesForLogbook(logbook.id).collectAsState(initial = emptyList())
     val scrollState = rememberScrollState()
 
     var tempPhotoUri by remember { mutableStateOf<Uri?>(null) }
@@ -44,6 +51,16 @@ fun SubmitEntryScreen(
     LaunchedEffect(currentUser) {
         if (currentUser != null && formState.studentName.isBlank()) {
             viewModel.onStudentNameChanged(currentUser.fullName)
+        }
+    }
+
+    val studentEntries = remember(entries, currentUser, formState.studentName) {
+        if (currentUser != null) {
+            entries.filter { it.studentName.equals(currentUser.fullName, ignoreCase = true) }
+        } else if (formState.studentName.isNotBlank()) {
+            entries.filter { it.studentName.equals(formState.studentName, ignoreCase = true) }
+        } else {
+            entries
         }
     }
 
@@ -84,7 +101,7 @@ fun SubmitEntryScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Registrar Bitácora Mensual") },
+                title = { Text(if (isEditingEntry) "Editar Registro" else "Registrar Bitácora") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(imageVector = Icons.Default.ArrowBack, contentDescription = "Volver")
@@ -101,6 +118,7 @@ fun SubmitEntryScreen(
                 .verticalScroll(scrollState),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            // Logbook Summary Header
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
@@ -114,6 +132,101 @@ fun SubmitEntryScreen(
                     if (logbook.guidingQuestions.isNotBlank()) {
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(text = "Pregunta Guía: ${logbook.guidingQuestions}", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                    }
+                }
+            }
+
+            // Existing Submitted Entries Section
+            if (studentEntries.isNotEmpty()) {
+                Text(
+                    text = "Tus Registros Enviados para esta Bitácora:",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+
+                studentEntries.forEach { entry ->
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.4f))
+                    ) {
+                        Column(modifier = Modifier.padding(14.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = entry.studentName,
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Badge(
+                                        containerColor = if (entry.isReviewed) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.errorContainer
+                                    ) {
+                                        Text(
+                                            text = if (entry.isReviewed) "Revisado" else "Pendiente",
+                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                        )
+                                    }
+                                    if (!logbook.isClosed) {
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        OutlinedButton(
+                                            onClick = { viewModel.prepareEditEntry(entry) },
+                                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
+                                            shape = RoundedCornerShape(8.dp)
+                                        ) {
+                                            Icon(imageVector = Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(16.dp))
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            Text(text = "Editar", style = MaterialTheme.typography.labelMedium)
+                                        }
+                                    }
+                                }
+                            }
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Text(text = "Contenidos: ${entry.contents}", style = MaterialTheme.typography.bodySmall)
+                            Text(text = "Actividades: ${entry.activities}", style = MaterialTheme.typography.bodySmall)
+                            Text(text = "Aprendizajes: ${entry.learnings}", style = MaterialTheme.typography.bodySmall)
+                            if (entry.doubts.isNotBlank()) {
+                                Text(text = "Dudas: ${entry.doubts}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+                            }
+                            if (!entry.feedback.isNullOrBlank()) {
+                                Spacer(modifier = Modifier.height(6.dp))
+                                Surface(
+                                    color = MaterialTheme.colorScheme.tertiaryContainer,
+                                    shape = RoundedCornerShape(8.dp)
+                                ) {
+                                    Text(
+                                        text = "Retroalimentación del Docente: ${entry.feedback}",
+                                        modifier = Modifier.padding(8.dp),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
+                HorizontalDivider()
+            }
+
+            // Entry Form Header
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = if (isEditingEntry) "Editando Registro" else "Nuevo Registro de Bitácora",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+
+                if (isEditingEntry) {
+                    TextButton(onClick = { viewModel.prepareNewEntry(currentUser?.fullName ?: "") }) {
+                        Text("Cancelar Edición")
                     }
                 }
             }
@@ -215,6 +328,12 @@ fun SubmitEntryScreen(
                 }
             }
 
+            AnimatedVisibility(visible = formState.photoUri != null) {
+                formState.photoUri?.let { uriStr ->
+                    PhotoPreview(photoUriString = uriStr)
+                }
+            }
+
             AnimatedVisibility(visible = formState.latitude != null) {
                 Text(
                     text = "Ubicación registrada: Lat ${formState.latitude}, Lon ${formState.longitude}",
@@ -237,10 +356,46 @@ fun SubmitEntryScreen(
                     .height(56.dp),
                 shape = RoundedCornerShape(16.dp)
             ) {
-                Icon(imageVector = Icons.Default.Send, contentDescription = null)
+                Icon(imageVector = if (isEditingEntry) Icons.Default.Save else Icons.Default.Send, contentDescription = null)
                 Spacer(modifier = Modifier.width(8.dp))
-                Text(text = if (logbook.isClosed) "Bitácora Cerrada" else "Enviar Registro Mensual", fontWeight = FontWeight.Bold)
+                Text(
+                    text = if (logbook.isClosed) "Bitácora Cerrada" else if (isEditingEntry) "Guardar Cambios" else "Enviar Registro Mensual",
+                    fontWeight = FontWeight.Bold
+                )
             }
+        }
+    }
+}
+
+@Composable
+fun PhotoPreview(photoUriString: String) {
+    val context = LocalContext.current
+    val bitmap = remember(photoUriString) {
+        try {
+            val uri = Uri.parse(photoUriString)
+            val inputStream = context.contentResolver.openInputStream(uri)
+            val bm = BitmapFactory.decodeStream(inputStream)
+            inputStream?.close()
+            bm?.asImageBitmap()
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+
+    if (bitmap != null) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(180.dp),
+            shape = RoundedCornerShape(12.dp)
+        ) {
+            Image(
+                bitmap = bitmap,
+                contentDescription = "Evidencia Fotográfica",
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop
+            )
         }
     }
 }

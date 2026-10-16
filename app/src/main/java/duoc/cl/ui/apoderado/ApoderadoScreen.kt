@@ -22,6 +22,7 @@ import androidx.compose.ui.unit.dp
 import duoc.cl.data.local.LogbookEntity
 import duoc.cl.data.local.LogbookEntryEntity
 import duoc.cl.viewmodel.ApoderadoViewModel
+import duoc.cl.viewmodel.EntryStatusFilter
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -33,6 +34,8 @@ fun ApoderadoScreen(
     val studentEmail by viewModel.studentEmail.collectAsState()
     val isSearchSubmitted by viewModel.isSearchSubmitted.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
+    val searchQuery by viewModel.entrySearchQuery.collectAsState()
+    val statusFilter by viewModel.entryStatusFilter.collectAsState()
 
     val entriesWithLogbooks by if (isSearchSubmitted) {
         viewModel.getStudentEntries().collectAsState(initial = emptyList())
@@ -205,6 +208,39 @@ fun ApoderadoScreen(
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
+
+                // Search by Month/Title/Content & Filter by Status
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = viewModel::setEntrySearchQuery,
+                    placeholder = { Text("Buscar por bitácora, mes o contenido...") },
+                    leadingIcon = { Icon(imageVector = Icons.Default.Search, contentDescription = null) },
+                    trailingIcon = {
+                        if (searchQuery.isNotEmpty()) {
+                            IconButton(onClick = { viewModel.setEntrySearchQuery("") }) {
+                                Icon(imageVector = Icons.Default.Clear, contentDescription = "Limpiar")
+                            }
+                        }
+                    },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp)
+                )
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(text = "Estado:", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold)
+                    EntryStatusFilter.entries.forEach { filter ->
+                        FilterChip(
+                            selected = statusFilter == filter,
+                            onClick = { viewModel.setEntryStatusFilter(filter) },
+                            label = { Text(filter.label) }
+                        )
+                    }
+                }
 
                 if (entriesWithLogbooks.isEmpty()) {
                     Box(

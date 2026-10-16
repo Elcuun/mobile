@@ -23,32 +23,52 @@ class UserRepository private constructor(context: Context) {
     }
 
     private fun initDefaultUsersIfNeeded() {
-        val usersJson = prefs.getString(KEY_USERS, null)
-        if (usersJson.isNull_or_empty_json()) {
-            val defaultUsers = listOf(
-                User(
-                    firstName = "María",
-                    lastName = "González",
-                    email = "docente@duoc.cl",
-                    password = "123456",
-                    role = Role.PROFESOR,
-                    courseId = null
-                ),
-                User(
-                    firstName = "Ignacia",
-                    lastName = "Soto",
-                    email = "estudiante@duoc.cl",
-                    password = "123456",
-                    role = Role.ALUMNO,
-                    courseId = 1L // 5.º Básico A
-                )
+        val users = getUsers()
+        val defaultUsers = listOf(
+            User(
+                firstName = "María",
+                lastName = "González",
+                email = "docente@duoc.cl",
+                password = "123456",
+                role = Role.PROFESOR,
+                courseId = null
+            ),
+            User(
+                firstName = "Carlos",
+                lastName = "Rodríguez",
+                email = "docente2@duoc.cl",
+                password = "123456",
+                role = Role.PROFESOR,
+                courseId = null
+            ),
+            User(
+                firstName = "Ignacia",
+                lastName = "Soto",
+                email = "estudiante@duoc.cl",
+                password = "123456",
+                role = Role.ALUMNO,
+                courseId = 1L // 5.º Básico A
+            ),
+            User(
+                firstName = "Lucas",
+                lastName = "Pérez",
+                email = "estudiante2@duoc.cl",
+                password = "123456",
+                role = Role.ALUMNO,
+                courseId = 4L // 8.º Básico A
             )
-            saveUsers(defaultUsers)
-        }
-    }
+        )
 
-    private fun String?.isNull_or_empty_json(): Boolean {
-        return this.isNullOrBlank() || this == "[]"
+        var changed = false
+        for (defaultUser in defaultUsers) {
+            if (users.none { it.email.equals(defaultUser.email, ignoreCase = true) }) {
+                users.add(defaultUser)
+                changed = true
+            }
+        }
+        if (changed || users.isEmpty()) {
+            saveUsers(users)
+        }
     }
 
     private fun getUsers(): MutableList<User> {

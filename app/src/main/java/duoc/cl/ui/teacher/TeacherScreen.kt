@@ -18,6 +18,7 @@ import duoc.cl.data.local.LogbookEntity
 import duoc.cl.data.local.Subject
 import duoc.cl.data.local.User
 import duoc.cl.ui.components.UserHeader
+import duoc.cl.viewmodel.LogbookStatusFilter
 import duoc.cl.viewmodel.TeacherViewModel
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
@@ -28,10 +29,13 @@ fun TeacherScreen(
     onLogout: () -> Unit,
     onNavigateBack: () -> Unit,
     onCreateLogbook: (Long, Long) -> Unit,
+    onEditLogbook: ((LogbookEntity) -> Unit)? = null,
     onOpenLogbookDetail: (LogbookEntity) -> Unit
 ) {
     val courses by viewModel.courses.collectAsState(initial = emptyList())
     val subjects by viewModel.subjects.collectAsState(initial = emptyList())
+    val searchQuery by viewModel.logbookSearchQuery.collectAsState()
+    val statusFilter by viewModel.logbookStatusFilter.collectAsState()
 
     var selectedCourse by remember { mutableStateOf<Course?>(null) }
     var selectedSubject by remember { mutableStateOf<Subject?>(null) }
@@ -137,9 +141,42 @@ fun TeacherScreen(
                             fontWeight = FontWeight.Bold
                         )
 
+                        // Search by Title/Month & Filter by Status
+                        OutlinedTextField(
+                            value = searchQuery,
+                            onValueChange = viewModel::setLogbookSearchQuery,
+                            placeholder = { Text("Buscar por título o mes (ej: Marzo)...") },
+                            leadingIcon = { Icon(imageVector = Icons.Default.Search, contentDescription = null) },
+                            trailingIcon = {
+                                if (searchQuery.isNotEmpty()) {
+                                    IconButton(onClick = { viewModel.setLogbookSearchQuery("") }) {
+                                        Icon(imageVector = Icons.Default.Clear, contentDescription = "Limpiar")
+                                    }
+                                }
+                            },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp)
+                        )
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(text = "Estado:", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold)
+                            LogbookStatusFilter.entries.forEach { filter ->
+                                FilterChip(
+                                    selected = statusFilter == filter,
+                                    onClick = { viewModel.setLogbookStatusFilter(filter) },
+                                    label = { Text(filter.label) }
+                                )
+                            }
+                        }
+
                         if (logbooks.isEmpty()) {
                             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                Text(text = "No hay bitácoras creadas. Presione '+' para crear una.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(text = "No hay bitácoras que coincidan con la búsqueda.", color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                         } else {
                             LazyColumn(
@@ -150,6 +187,10 @@ fun TeacherScreen(
                                     LogbookItemCard(
                                         logbook = logbook,
                                         onClick = { onOpenLogbookDetail(logbook) },
+                                        onEdit = {
+                                            viewModel.prepareEditLogbook(logbook)
+                                            onEditLogbook?.invoke(logbook)
+                                        },
                                         onDelete = { logbookToDelete = logbook }
                                     )
                                 }
@@ -194,6 +235,7 @@ fun TeacherScreen(
 fun LogbookItemCard(
     logbook: LogbookEntity,
     onClick: () -> Unit,
+    onEdit: () -> Unit,
     onDelete: () -> Unit
 ) {
     Card(
@@ -223,6 +265,16 @@ fun LogbookItemCard(
                         )
                     }
                     Spacer(modifier = Modifier.width(4.dp))
+                    IconButton(
+                        onClick = onEdit,
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Edit,
+                            contentDescription = "Editar Bitácora",
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
                     IconButton(
                         onClick = onDelete,
                         modifier = Modifier.size(36.dp)

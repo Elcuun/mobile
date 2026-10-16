@@ -14,6 +14,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import duoc.cl.data.local.LogbookEntity
 import duoc.cl.data.local.LogbookEntryEntity
+import duoc.cl.viewmodel.EntryStatusFilter
 import duoc.cl.viewmodel.TeacherViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -21,9 +22,12 @@ import duoc.cl.viewmodel.TeacherViewModel
 fun LogbookDetailScreen(
     logbook: LogbookEntity,
     viewModel: TeacherViewModel,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onEditLogbook: ((LogbookEntity) -> Unit)? = null
 ) {
     val entries by viewModel.getEntries(logbook.id).collectAsState(initial = emptyList())
+    val searchQuery by viewModel.entrySearchQuery.collectAsState()
+    val statusFilter by viewModel.entryStatusFilter.collectAsState()
     var selectedEntryForFeedback by remember { mutableStateOf<LogbookEntryEntity?>(null) }
     var showDeleteConfirmDialog by remember { mutableStateOf(false) }
 
@@ -37,6 +41,16 @@ fun LogbookDetailScreen(
                     }
                 },
                 actions = {
+                    IconButton(onClick = {
+                        viewModel.prepareEditLogbook(logbook)
+                        onEditLogbook?.invoke(logbook)
+                    }) {
+                        Icon(
+                            imageVector = Icons.Default.Edit,
+                            contentDescription = "Editar Bitácora",
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
                     IconButton(onClick = { viewModel.toggleCloseLogbook(logbook) }) {
                         Icon(
                             imageVector = if (logbook.isClosed) Icons.Default.Lock else Icons.Default.LockOpen,
@@ -84,9 +98,42 @@ fun LogbookDetailScreen(
 
             Text(text = "Aportes de Estudiantes", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
 
+            // Search by Student Name / Content & Filter by Review Status
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = viewModel::setEntrySearchQuery,
+                placeholder = { Text("Buscar por estudiante o contenido...") },
+                leadingIcon = { Icon(imageVector = Icons.Default.Search, contentDescription = null) },
+                trailingIcon = {
+                    if (searchQuery.isNotEmpty()) {
+                        IconButton(onClick = { viewModel.setEntrySearchQuery("") }) {
+                            Icon(imageVector = Icons.Default.Clear, contentDescription = "Limpiar")
+                        }
+                    }
+                },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp)
+            )
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(text = "Estado:", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold)
+                EntryStatusFilter.entries.forEach { filter ->
+                    FilterChip(
+                        selected = statusFilter == filter,
+                        onClick = { viewModel.setEntryStatusFilter(filter) },
+                        label = { Text(filter.label) }
+                    )
+                }
+            }
+
             if (entries.isEmpty()) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text(text = "Aún no hay aportes registrados por los estudiantes.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(text = "No hay aportes que coincidan con la búsqueda.", color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             } else {
                 LazyColumn(

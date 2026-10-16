@@ -9,6 +9,18 @@ import duoc.cl.data.repository.AppRepository
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
+enum class LogbookStatusFilter(val label: String) {
+    ALL("Todas"),
+    ACTIVE("Activas"),
+    CLOSED("Cerradas")
+}
+
+enum class EntryStatusFilter(val label: String) {
+    ALL("Todas"),
+    PENDING("Pendientes"),
+    REVIEWED("Revisadas")
+}
+
 class TeacherViewModel(application: Application) : AndroidViewModel(application) {
     private val repository = AppRepository.getInstance(application)
 
@@ -21,17 +33,80 @@ class TeacherViewModel(application: Application) : AndroidViewModel(application)
     private val _selectedSubjectId = MutableStateFlow<Long?>(null)
     val selectedSubjectId: StateFlow<Long?> = _selectedSubjectId.asStateFlow()
 
+    private val _logbookSearchQuery = MutableStateFlow("")
+    val logbookSearchQuery: StateFlow<String> = _logbookSearchQuery.asStateFlow()
+
+    private val _logbookStatusFilter = MutableStateFlow(LogbookStatusFilter.ALL)
+    val logbookStatusFilter: StateFlow<LogbookStatusFilter> = _logbookStatusFilter.asStateFlow()
+
+    private val _entrySearchQuery = MutableStateFlow("")
+    val entrySearchQuery: StateFlow<String> = _entrySearchQuery.asStateFlow()
+
+    private val _entryStatusFilter = MutableStateFlow(EntryStatusFilter.ALL)
+    val entryStatusFilter: StateFlow<EntryStatusFilter> = _entryStatusFilter.asStateFlow()
+
+    fun setLogbookSearchQuery(query: String) {
+        _logbookSearchQuery.value = query
+    }
+
+    fun setLogbookStatusFilter(filter: LogbookStatusFilter) {
+        _logbookStatusFilter.value = filter
+    }
+
+    fun setEntrySearchQuery(query: String) {
+        _entrySearchQuery.value = query
+    }
+
+    fun setEntryStatusFilter(filter: EntryStatusFilter) {
+        _entryStatusFilter.value = filter
+    }
+
     fun selectCourseAndSubject(courseId: Long, subjectId: Long) {
         _selectedCourseId.value = courseId
         _selectedSubjectId.value = subjectId
     }
 
     fun getLogbooks(courseId: Long, subjectId: Long): Flow<List<LogbookEntity>> {
-        return repository.getLogbooks(courseId, subjectId)
+        return combine(
+            repository.getLogbooks(courseId, subjectId),
+            _logbookSearchQuery,
+            _logbookStatusFilter
+        ) { logbooks, query, statusFilter ->
+            logbooks.filter { logbook ->
+                val matchesQuery = query.isBlank() ||
+                        logbook.title.contains(query, ignoreCase = true) ||
+                        logbook.month.contains(query, ignoreCase = true) ||
+                        logbook.purpose.contains(query, ignoreCase = true)
+                val matchesStatus = when (statusFilter) {
+                    LogbookStatusFilter.ALL -> true
+                    LogbookStatusFilter.ACTIVE -> !logbook.isClosed
+                    LogbookStatusFilter.CLOSED -> logbook.isClosed
+                }
+                matchesQuery && matchesStatus
+            }
+        }
     }
 
     fun getEntries(logbookId: Long): Flow<List<LogbookEntryEntity>> {
-        return repository.getEntriesByLogbook(logbookId)
+        return combine(
+            repository.getEntriesByLogbook(logbookId),
+            _entrySearchQuery,
+            _entryStatusFilter
+        ) { entries, query, statusFilter ->
+            entries.filter { entry ->
+                val matchesQuery = query.isBlank() ||
+                        entry.studentName.contains(query, ignoreCase = true) ||
+                        entry.contents.contains(query, ignoreCase = true) ||
+                        entry.activities.contains(query, ignoreCase = true) ||
+                        entry.learnings.contains(query, ignoreCase = true)
+                val matchesStatus = when (statusFilter) {
+                    EntryStatusFilter.ALL -> true
+                    EntryStatusFilter.PENDING -> !entry.isReviewed
+                    EntryStatusFilter.REVIEWED -> entry.isReviewed
+                }
+                matchesQuery && matchesStatus
+            }
+        }
     }
 
     data class LogbookFormState(
@@ -80,24 +155,73 @@ class TeacherViewModel(application: Application) : AndroidViewModel(application)
         return copy(isFormValid = valid)
     }
 
+    private var editingLogbook: LogbookEntity? = null
+
+    val isEditingLogbook: Boolean
+        get() = editingLogbook != null
+
+    fun prepareCreateLogbook() {
+        editingLogbook = null
+        _formState.value = LogbookFormState()
+    }
+
+    fun prepareEditLogbook(logbook: LogbookEntity) {
+        editingLogbook = logbook
+        _formState.value = LogbookFormState(
+            month = logbook.month,
+            title = logbook.title,
+            purpose = logbook.purpose,
+            instructions = logbook.instructions,
+            guidingQuestions = logbook.guidingQuestions
+        ).validate()
+    }
+
+    fun loadAndPrepareEditLogbook(logbookId: Long) {
+        viewModelScope.launch {
+            val logbook = repository.getLogbookById(logbookId)
+            if (logbook != null) {
+                prepareEditLogbook(logbook)
+            } else {
+                prepareCreateLogbook()
+            }
+        }
+    }
+
     fun createLogbook(courseId: Long, subjectId: Long, onResult: (Boolean) -> Unit) {
+        saveLogbook(courseId, subjectId, onResult)
+    }
+
+    fun saveLogbook(courseId: Long, subjectId: Long, onResult: (Boolean) -> Unit) {
         val state = _formState.value
         if (!state.isFormValid) {
             onResult(false)
             return
         }
         viewModelScope.launch {
-            repository.insertLogbook(
-                LogbookEntity(
-                    courseId = courseId,
-                    subjectId = subjectId,
+            val currentEditing = editingLogbook
+            if (currentEditing != null) {
+                val updated = currentEditing.copy(
                     month = state.month,
                     title = state.title,
                     purpose = state.purpose,
                     instructions = state.instructions,
                     guidingQuestions = state.guidingQuestions
                 )
-            )
+                repository.updateLogbook(updated)
+            } else {
+                repository.insertLogbook(
+                    LogbookEntity(
+                        courseId = courseId,
+                        subjectId = subjectId,
+                        month = state.month,
+                        title = state.title,
+                        purpose = state.purpose,
+                        instructions = state.instructions,
+                        guidingQuestions = state.guidingQuestions
+                    )
+                )
+            }
+            editingLogbook = null
             _formState.value = LogbookFormState()
             onResult(true)
         }

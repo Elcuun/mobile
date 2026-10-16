@@ -18,6 +18,7 @@ import duoc.cl.data.local.LogbookEntity
 import duoc.cl.data.local.Subject
 import duoc.cl.data.local.User
 import duoc.cl.ui.components.UserHeader
+import duoc.cl.viewmodel.LogbookStatusFilter
 import duoc.cl.viewmodel.StudentViewModel
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
@@ -31,6 +32,8 @@ fun StudentScreen(
 ) {
     val courses by viewModel.courses.collectAsState(initial = emptyList())
     val subjects by viewModel.subjects.collectAsState(initial = emptyList())
+    val searchQuery by viewModel.logbookSearchQuery.collectAsState()
+    val statusFilter by viewModel.logbookStatusFilter.collectAsState()
 
     val assignedCourse = remember(currentUser, courses) {
         currentUser?.courseId?.let { cid -> courses.firstOrNull { it.id == cid } }
@@ -175,9 +178,42 @@ fun StudentScreen(
                             fontWeight = FontWeight.Bold
                         )
 
+                        // Search by Title/Month & Filter by Status
+                        OutlinedTextField(
+                            value = searchQuery,
+                            onValueChange = viewModel::setLogbookSearchQuery,
+                            placeholder = { Text("Buscar por título o mes (ej: Marzo)...") },
+                            leadingIcon = { Icon(imageVector = Icons.Default.Search, contentDescription = null) },
+                            trailingIcon = {
+                                if (searchQuery.isNotEmpty()) {
+                                    IconButton(onClick = { viewModel.setLogbookSearchQuery("") }) {
+                                        Icon(imageVector = Icons.Default.Clear, contentDescription = "Limpiar")
+                                    }
+                                }
+                            },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp)
+                        )
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(text = "Estado:", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold)
+                            LogbookStatusFilter.entries.forEach { filter ->
+                                FilterChip(
+                                    selected = statusFilter == filter,
+                                    onClick = { viewModel.setLogbookStatusFilter(filter) },
+                                    label = { Text(filter.label) }
+                                )
+                            }
+                        }
+
                         if (logbooks.isEmpty()) {
                             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                Text(text = "No hay bitácoras publicadas para este curso y asignatura.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(text = "No se encontraron bitácoras para los filtros aplicados.", color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                         } else {
                             LazyColumn(
