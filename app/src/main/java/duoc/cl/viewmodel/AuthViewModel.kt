@@ -12,6 +12,10 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 
+/**
+ * ViewModel encargado de la autenticación de usuarios (inicio de sesión, registro y cierre de sesión).
+ * Gestiona el estado de los formularios, las validaciones de entrada y la interacción con UserRepository.
+ */
 class AuthViewModel(application: Application) : AndroidViewModel(application) {
 
     private val userRepository = UserRepository.getInstance(application)
@@ -20,7 +24,9 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
     val currentUser: StateFlow<User?> = userRepository.currentUser
     val courses = appRepository.courses
 
-    // Login Form State
+    /**
+     * Estado del formulario de Inicio de Sesión.
+     */
     data class LoginFormState(
         val email: String = "",
         val password: String = "",
@@ -33,7 +39,9 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
     private val _loginState = MutableStateFlow(LoginFormState())
     val loginState: StateFlow<LoginFormState> = _loginState.asStateFlow()
 
-    // Registration Form State
+    /**
+     * Estado del formulario de Registro de Usuario.
+     */
     data class RegisterFormState(
         val firstName: String = "",
         val lastName: String = "",
@@ -54,8 +62,11 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
     private val _registerState = MutableStateFlow(RegisterFormState())
     val registerState: StateFlow<RegisterFormState> = _registerState.asStateFlow()
 
-    // --- Login Handlers ---
+    // --- MANEJADORES DE INICIO DE SESIÓN ---
 
+    /**
+     * Manejador del cambio en el campo correo de login.
+     */
     fun onLoginEmailChanged(value: String) {
         _loginState.update {
             it.copy(
@@ -66,6 +77,9 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    /**
+     * Manejador del cambio en el campo contraseña de login.
+     */
     fun onLoginPasswordChanged(value: String) {
         _loginState.update {
             it.copy(
@@ -76,6 +90,9 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    /**
+     * Ejecuta el proceso de inicio de sesión validando formato de correo y credenciales según el rol.
+     */
     fun login(role: Role, onSuccess: () -> Unit) {
         val state = _loginState.value
         val email = state.email.trim()
@@ -122,8 +139,11 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         )
     }
 
-    // --- Register Handlers ---
+    // --- MANEJADORES DE REGISTRO DE USUARIO ---
 
+    /**
+     * Manejador para el nombre en el registro.
+     */
     fun onRegisterFirstNameChanged(value: String) {
         _registerState.update {
             it.copy(
@@ -134,6 +154,9 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    /**
+     * Manejador para el apellido en el registro.
+     */
     fun onRegisterLastNameChanged(value: String) {
         _registerState.update {
             it.copy(
@@ -144,6 +167,9 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    /**
+     * Manejador para el correo en el registro.
+     */
     fun onRegisterEmailChanged(value: String) {
         _registerState.update {
             it.copy(
@@ -154,6 +180,9 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    /**
+     * Manejador para la contraseña en el registro.
+     */
     fun onRegisterPasswordChanged(value: String) {
         _registerState.update {
             it.copy(
@@ -164,6 +193,9 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    /**
+     * Manejador para la confirmación de contraseña.
+     */
     fun onRegisterConfirmPasswordChanged(value: String) {
         _registerState.update {
             it.copy(
@@ -174,6 +206,9 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    /**
+     * Manejador para la selección del curso del estudiante.
+     */
     fun onRegisterCourseSelected(courseId: Long) {
         _registerState.update {
             it.copy(
@@ -184,6 +219,9 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    /**
+     * Registra un nuevo usuario en el sistema con validaciones completas de campos y rol.
+     */
     fun register(role: Role, onSuccess: () -> Unit) {
         val state = _registerState.value
         val firstName = state.firstName.trim()
@@ -275,6 +313,9 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         )
     }
 
+    /**
+     * Cierra la sesión activa del usuario.
+     */
     fun logout() {
         userRepository.logout()
         _loginState.value = LoginFormState()

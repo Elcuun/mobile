@@ -23,6 +23,10 @@ import duoc.cl.viewmodel.AuthViewModel
 import duoc.cl.viewmodel.StudentViewModel
 import duoc.cl.viewmodel.TeacherViewModel
 
+/**
+ * Grafo de Navegación principal de la aplicación.
+ * Administra el flujo de pantallas para los tres perfiles: Docente, Estudiante y Apoderado.
+ */
 @Composable
 fun AppNavigation() {
     val navController = rememberNavController()
@@ -37,6 +41,8 @@ fun AppNavigation() {
     var activeLogbookForStudent by remember { mutableStateOf<LogbookEntity?>(null) }
 
     NavHost(navController = navController, startDestination = "role_selection") {
+
+        // Pantalla 1: Selección de Rol (Docente, Estudiante, Apoderado)
         composable("role_selection") {
             RoleSelectionScreen(
                 onSelectTeacher = {
@@ -59,6 +65,7 @@ fun AppNavigation() {
             )
         }
 
+        // Pantalla 2: Portal de Apoderado (Consulta de actividades y retroalimentación)
         composable("apoderado_dashboard") {
             ApoderadoScreen(
                 viewModel = apoderadoViewModel,
@@ -66,6 +73,7 @@ fun AppNavigation() {
             )
         }
 
+        // Pantalla 3: Inicio de Sesión según el rol seleccionado
         composable(
             route = "auth_login/{role}",
             arguments = listOf(navArgument("role") { type = NavType.StringType })
@@ -88,6 +96,7 @@ fun AppNavigation() {
             )
         }
 
+        // Pantalla 4: Registro de nuevo usuario
         composable(
             route = "auth_register/{role}",
             arguments = listOf(navArgument("role") { type = NavType.StringType })
@@ -110,6 +119,7 @@ fun AppNavigation() {
             )
         }
 
+        // Pantalla 5: Panel Principal del Docente (Gestión de Bitácoras)
         composable("teacher_dashboard") {
             TeacherScreen(
                 viewModel = teacherViewModel,
@@ -136,6 +146,7 @@ fun AppNavigation() {
             )
         }
 
+        // Pantalla 6: Formulario de Creación y Edición de Bitácora (Docente)
         composable(
             route = "create_logbook/{courseId}/{subjectId}?logbookId={logbookId}",
             arguments = listOf(
@@ -160,6 +171,7 @@ fun AppNavigation() {
             )
         }
 
+        // Pantalla 7: Detalle de Bitácora y Aportes recibidos (Docente)
         composable("logbook_detail") {
             activeLogbookForTeacher?.let { logbook ->
                 LogbookDetailScreen(
@@ -174,6 +186,7 @@ fun AppNavigation() {
             }
         }
 
+        // Pantalla 8: Panel Principal del Estudiante
         composable("student_dashboard") {
             StudentScreen(
                 viewModel = studentViewModel,
@@ -192,6 +205,7 @@ fun AppNavigation() {
             )
         }
 
+        // Pantalla 9: Formulario para enviar/editar registro de bitácora (Estudiante)
         composable("submit_entry") {
             activeLogbookForStudent?.let { logbook ->
                 SubmitEntryScreen(

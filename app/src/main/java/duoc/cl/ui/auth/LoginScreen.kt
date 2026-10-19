@@ -37,7 +37,11 @@ fun LoginScreen(
 
     val isTeacher = role == Role.PROFESOR
     val roleTitle = role.displayName
-    val defaultDemoEmail = if (isTeacher) "docente@duoc.cl / docente2@duoc.cl" else "estudiante@duoc.cl / estudiante2@duoc.cl"
+    val defaultDemoEmail = when (role) {
+        Role.PROFESOR -> "docente@duoc.cl / docente2@duoc.cl"
+        Role.ALUMNO -> "estudiante@duoc.cl / estudiante2@duoc.cl / estudiante3@duoc.cl"
+        Role.APODERADO -> "apoderado@duoc.cl / apoderado2@duoc.cl"
+    }
 
     Scaffold(
         topBar = {
@@ -217,7 +221,7 @@ fun LoginScreen(
             ) {
                 Column(modifier = Modifier.padding(12.dp)) {
                     Text(
-                        text = "Demo de prueba:",
+                        text = "Cuentas Demo para $roleTitle:",
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary

@@ -13,10 +13,16 @@ import kotlinx.coroutines.flow.map
 import org.json.JSONArray
 import org.json.JSONObject
 
+/**
+ * Repositorio principal de la aplicación para gestionar la persistencia local
+ * de Cursos, Asignaturas, Bitácoras Mensuales y Registros/Aportes de Estudiantes.
+ * Utiliza SharedPreferences con serialización JSON para garantizar persistencia offline.
+ */
 class AppRepository private constructor(context: Context) {
 
     private val prefs: SharedPreferences = context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
+    // Lista reactiva de Cursos disponibles
     private val _courses = MutableStateFlow(
         listOf(
             Course(1L, "5.º Básico A"),
@@ -27,6 +33,7 @@ class AppRepository private constructor(context: Context) {
     )
     val courses: Flow<List<Course>> = _courses.asStateFlow()
 
+    // Lista reactiva de Asignaturas disponibles
     private val _subjects = MutableStateFlow(
         listOf(
             Subject(1L, "Matemáticas"),
@@ -45,8 +52,12 @@ class AppRepository private constructor(context: Context) {
         loadEntries()
     }
 
-    // --- LOGBOOKS PERSISTENCE ---
+    // --- PERSISTENCIA DE BITÁCORAS ---
 
+    /**
+     * Carga las bitácoras almacenadas localmente en SharedPreferences.
+     * Si no existen registros guardados, inicializa el conjunto con datos demo.
+     */
     private fun loadLogbooks() {
         val jsonString = prefs.getString(KEY_LOGBOOKS, null)
         if (jsonString.isNullOrBlank()) {
@@ -59,6 +70,9 @@ class AppRepository private constructor(context: Context) {
         }
     }
 
+    /**
+     * Retorna el conjunto inicial de bitácoras de ejemplo para demostración.
+     */
     private fun getInitialLogbooks(): List<LogbookEntity> {
         return listOf(
             LogbookEntity(
@@ -94,6 +108,9 @@ class AppRepository private constructor(context: Context) {
         )
     }
 
+    /**
+     * Parsea una cadena JSON en una lista de objetos LogbookEntity.
+     */
     private fun parseLogbooksJson(jsonString: String): List<LogbookEntity> {
         val list = mutableListOf<LogbookEntity>()
         try {
@@ -121,6 +138,9 @@ class AppRepository private constructor(context: Context) {
         return list
     }
 
+    /**
+     * Guarda la lista actual de bitácoras en SharedPreferences en formato JSON.
+     */
     private fun saveLogbooksToPrefs(list: List<LogbookEntity>) {
         try {
             val array = JSONArray()
@@ -145,8 +165,12 @@ class AppRepository private constructor(context: Context) {
         }
     }
 
-    // --- ENTRIES PERSISTENCE ---
+    // --- PERSISTENCIA DE REGISTROS DE ESTUDIANTES ---
 
+    /**
+     * Carga los registros/aportes de estudiantes desde SharedPreferences.
+     * Si no existen registros previos, carga los de ejemplo asegurando el nombre correcto.
+     */
     private fun loadEntries() {
         val jsonString = prefs.getString(KEY_ENTRIES, null)
         if (jsonString.isNullOrBlank()) {
@@ -155,10 +179,24 @@ class AppRepository private constructor(context: Context) {
             saveEntriesToPrefs(initial)
         } else {
             val list = parseEntriesJson(jsonString)
-            _entries.value = list
+            // Corregir variaciones de nombres de estudiantes en datos previos
+            val updatedList = list.map { entry ->
+                if (entry.studentName.contains("Lucas Prez", ignoreCase = true)) {
+                    entry.copy(studentName = "Lucas Pérez")
+                } else {
+                    entry
+                }
+            }
+            _entries.value = updatedList
+            if (updatedList != list) {
+                saveEntriesToPrefs(updatedList)
+            }
         }
     }
 
+    /**
+     * Retorna los registros iniciales de estudiantes con nombres estandarizados ("Lucas Pérez").
+     */
     private fun getInitialEntries(): List<LogbookEntryEntity> {
         return listOf(
             LogbookEntryEntity(
@@ -186,17 +224,22 @@ class AppRepository private constructor(context: Context) {
         )
     }
 
+    /**
+     * Parsea una cadena JSON en una lista de LogbookEntryEntity.
+     */
     private fun parseEntriesJson(jsonString: String): List<LogbookEntryEntity> {
         val list = mutableListOf<LogbookEntryEntity>()
         try {
             val array = JSONArray(jsonString)
             for (i in 0 until array.length()) {
                 val obj = array.getJSONObject(i)
+                val rawName = obj.optString("studentName")
+                val cleanName = if (rawName.contains("Lucas Prez", ignoreCase = true)) "Lucas Pérez" else rawName
                 list.add(
                     LogbookEntryEntity(
                         id = obj.optLong("id"),
                         logbookId = obj.optLong("logbookId"),
-                        studentName = obj.optString("studentName"),
+                        studentName = cleanName,
                         contents = obj.optString("contents"),
                         activities = obj.optString("activities"),
                         learnings = obj.optString("learnings"),
@@ -216,6 +259,9 @@ class AppRepository private constructor(context: Context) {
         return list
     }
 
+    /**
+     * Guarda la lista de registros de estudiantes en SharedPreferences.
+     */
     private fun saveEntriesToPrefs(list: List<LogbookEntryEntity>) {
         try {
             val array = JSONArray()
@@ -243,12 +289,18 @@ class AppRepository private constructor(context: Context) {
         }
     }
 
-    // --- PUBLIC METHODS ---
+    // --- MÉTODOS PÚBLICOS DEL REPOSITORIO ---
 
+    /**
+     * Obtiene el flujo continuo de bitácoras filtradas por curso y asignatura.
+     */
     fun getLogbooks(courseId: Long, subjectId: Long): Flow<List<LogbookEntity>> {
         return _logbooks.map { list -> list.filter { it.courseId == courseId && it.subjectId == subjectId } }
     }
 
+    /**
+     * Inserta una nueva bitácora mensual creada por el docente.
+     */
     suspend fun insertLogbook(logbook: LogbookEntity): Long {
         val newLogbook = logbook.copy(id = System.currentTimeMillis())
         val current = _logbooks.value.toMutableList()
@@ -258,6 +310,9 @@ class AppRepository private constructor(context: Context) {
         return newLogbook.id
     }
 
+    /**
+     * Actualiza una bitácora mensual existente.
+     */
     suspend fun updateLogbook(logbook: LogbookEntity) {
         val current = _logbooks.value.toMutableList()
         val index = current.indexOfFirst { it.id == logbook.id }
@@ -268,6 +323,9 @@ class AppRepository private constructor(context: Context) {
         }
     }
 
+    /**
+     * Elimina una bitácora y todos sus registros asociados.
+     */
     suspend fun deleteLogbook(id: Long) {
         val currentLogbooks = _logbooks.value.toMutableList()
         currentLogbooks.removeAll { it.id == id }
@@ -280,21 +338,36 @@ class AppRepository private constructor(context: Context) {
         saveEntriesToPrefs(currentEntries)
     }
 
+    /**
+     * Busca una bitácora específica por su identificador único.
+     */
     suspend fun getLogbookById(id: Long): LogbookEntity? {
         return _logbooks.value.firstOrNull { it.id == id }
     }
 
+    /**
+     * Obtiene el flujo de registros asociados a una bitácora.
+     */
     fun getEntriesByLogbook(logbookId: Long): Flow<List<LogbookEntryEntity>> {
         return _entries.map { list -> list.filter { it.logbookId == logbookId } }
     }
 
+    /**
+     * Busca los registros de estudiantes mediante coincidencia flexible de nombre o correo (para el Apoderado).
+     * Normaliza tildes y mayúsculas/minúsculas para garantizar resultados exactos.
+     */
     fun getEntriesByStudentQuery(studentQuery: String): Flow<List<Pair<LogbookEntity, LogbookEntryEntity>>> {
         return _entries.map { entriesList ->
-            val cleanQuery = studentQuery.trim().lowercase()
+            val cleanQuery = normalizeText(studentQuery)
             val filtered = if (cleanQuery.isEmpty()) {
                 entriesList
             } else {
-                entriesList.filter { it.studentName.lowercase().contains(cleanQuery) }
+                entriesList.filter { entry ->
+                    val cleanStudentName = normalizeText(entry.studentName)
+                    // Coincidencia bidireccional tolerante a acentos
+                    cleanStudentName.contains(cleanQuery) || cleanQuery.contains(cleanStudentName) ||
+                            cleanQuery.split(" ").any { part -> part.length > 2 && cleanStudentName.contains(part) }
+                }
             }
             filtered.mapNotNull { entry ->
                 val logbook = _logbooks.value.firstOrNull { it.id == entry.logbookId }
@@ -303,14 +376,36 @@ class AppRepository private constructor(context: Context) {
         }
     }
 
+    /**
+     * Función auxiliar para remover tildes y caracteres especiales en búsquedas.
+     */
+    private fun normalizeText(text: String): String {
+        return text.trim().lowercase()
+            .replace("á", "a")
+            .replace("é", "e")
+            .replace("í", "i")
+            .replace("ó", "o")
+            .replace("ú", "u")
+            .replace("ñ", "n")
+    }
+
+    /**
+     * Obtiene la entidad Curso por su ID.
+     */
     fun getCourseById(courseId: Long): Course? {
         return _courses.value.firstOrNull { it.id == courseId }
     }
 
+    /**
+     * Obtiene la entidad Asignatura por su ID.
+     */
     fun getSubjectById(subjectId: Long): Subject? {
         return _subjects.value.firstOrNull { it.id == subjectId }
     }
 
+    /**
+     * Inserta un nuevo registro/aporte de un estudiante.
+     */
     suspend fun insertEntry(entry: LogbookEntryEntity): Long {
         val newEntry = entry.copy(id = System.currentTimeMillis())
         val current = _entries.value.toMutableList()
@@ -320,6 +415,9 @@ class AppRepository private constructor(context: Context) {
         return newEntry.id
     }
 
+    /**
+     * Actualiza un registro/aporte existente de un estudiante.
+     */
     suspend fun updateEntry(entry: LogbookEntryEntity) {
         val current = _entries.value.toMutableList()
         val index = current.indexOfFirst { it.id == entry.id }
@@ -330,14 +428,17 @@ class AppRepository private constructor(context: Context) {
         }
     }
 
+    /**
+     * Busca un registro por su ID.
+     */
     suspend fun getEntryById(id: Long): LogbookEntryEntity? {
         return _entries.value.firstOrNull { it.id == id }
     }
 
     companion object {
-        private const val PREFS_NAME = "app_logbook_prefs"
-        private const val KEY_LOGBOOKS = "saved_logbooks_v1"
-        private const val KEY_ENTRIES = "saved_entries_v1"
+        private const val PREFS_NAME = "app_logbook_prefs_v2"
+        private const val KEY_LOGBOOKS = "saved_logbooks_v2"
+        private const val KEY_ENTRIES = "saved_entries_v2"
 
         @Volatile
         private var INSTANCE: AppRepository? = null
@@ -351,7 +452,7 @@ class AppRepository private constructor(context: Context) {
         }
 
         fun getInstance(): AppRepository {
-            return INSTANCE ?: throw IllegalStateException("AppRepository is not initialized. Call getInstance(context) first.")
+            return INSTANCE ?: throw IllegalStateException("AppRepository no está inicializado. Llame a getInstance(context) primero.")
         }
     }
 }

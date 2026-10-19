@@ -21,6 +21,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import duoc.cl.data.local.LogbookEntity
 import duoc.cl.data.local.LogbookEntryEntity
+import duoc.cl.ui.student.PhotoPreview
 import duoc.cl.viewmodel.ApoderadoViewModel
 import duoc.cl.viewmodel.EntryStatusFilter
 
@@ -322,7 +323,7 @@ fun ApoderadoEntryCard(
                     containerColor = if (entry.isReviewed) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.errorContainer
                 ) {
                     Text(
-                        text = if (entry.isReviewed) "Revisado por Docente" else "Pendiente de Revisión",
+                        text = if (entry.isReviewed) "Revisado" else "Pendiente",
                         modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                     )
                 }
@@ -406,25 +407,20 @@ fun ApoderadoEntryCard(
             }
 
             // Evidencias registradas (Foto / GPS)
-            if (entry.photoUri != null || entry.latitude != null) {
+            if (!entry.photoUri.isNullOrBlank()) {
+                Spacer(modifier = Modifier.height(10.dp))
+                PhotoPreview(photoUriString = entry.photoUri, maxHeight = 160.dp)
+            }
+
+            if (entry.latitude != null) {
                 Spacer(modifier = Modifier.height(8.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    if (entry.photoUri != null) {
-                        AssistChip(
-                            onClick = {},
-                            enabled = false,
-                            label = { Text("Foto Adjunta", style = MaterialTheme.typography.labelSmall) },
-                            leadingIcon = { Icon(imageVector = Icons.Default.CameraAlt, contentDescription = null, modifier = Modifier.size(14.dp)) }
-                        )
-                    }
-                    if (entry.latitude != null) {
-                        AssistChip(
-                            onClick = {},
-                            enabled = false,
-                            label = { Text("Ubicación GPS OK", style = MaterialTheme.typography.labelSmall) },
-                            leadingIcon = { Icon(imageVector = Icons.Default.LocationOn, contentDescription = null, modifier = Modifier.size(14.dp)) }
-                        )
-                    }
+                    AssistChip(
+                        onClick = {},
+                        enabled = false,
+                        label = { Text("Ubicación GPS: ${entry.latitude}, ${entry.longitude}", style = MaterialTheme.typography.labelSmall) },
+                        leadingIcon = { Icon(imageVector = Icons.Default.LocationOn, contentDescription = null, modifier = Modifier.size(14.dp)) }
+                    )
                 }
             }
         }

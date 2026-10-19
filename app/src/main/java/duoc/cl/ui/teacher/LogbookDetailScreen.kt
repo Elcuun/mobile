@@ -14,6 +14,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import duoc.cl.data.local.LogbookEntity
 import duoc.cl.data.local.LogbookEntryEntity
+import duoc.cl.ui.student.PhotoPreview
 import duoc.cl.viewmodel.EntryStatusFilter
 import duoc.cl.viewmodel.TeacherViewModel
 
@@ -219,6 +220,10 @@ fun StudentEntryCard(entry: LogbookEntryEntity, onReviewClick: () -> Unit) {
             Text(text = "Aprendizajes: ${entry.learnings}", style = MaterialTheme.typography.bodyMedium)
             if (entry.doubts.isNotBlank()) {
                 Text(text = "Dudas: ${entry.doubts}", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error)
+            }
+            if (!entry.photoUri.isNullOrBlank()) {
+                Spacer(modifier = Modifier.height(8.dp))
+                PhotoPreview(photoUriString = entry.photoUri, maxHeight = 160.dp)
             }
             if (!entry.feedback.isNullOrBlank()) {
                 Spacer(modifier = Modifier.height(8.dp))

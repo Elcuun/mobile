@@ -34,6 +34,7 @@ fun StudentScreen(
     val subjects by viewModel.subjects.collectAsState(initial = emptyList())
     val searchQuery by viewModel.logbookSearchQuery.collectAsState()
     val statusFilter by viewModel.logbookStatusFilter.collectAsState()
+    val selectedMonthFilter by viewModel.selectedMonthFilter.collectAsState()
 
     val assignedCourse = remember(currentUser, courses) {
         currentUser?.courseId?.let { cid -> courses.firstOrNull { it.id == cid } }
@@ -41,6 +42,7 @@ fun StudentScreen(
 
     var selectedCourse by remember { mutableStateOf<Course?>(null) }
     var selectedSubject by remember { mutableStateOf<Subject?>(null) }
+    var monthDropdownExpanded by remember { mutableStateOf(false) }
 
     LaunchedEffect(assignedCourse) {
         if (assignedCourse != null) {
@@ -178,11 +180,11 @@ fun StudentScreen(
                             fontWeight = FontWeight.Bold
                         )
 
-                        // Search by Title/Month & Filter by Status
+                        // Search by Title/Month
                         OutlinedTextField(
                             value = searchQuery,
                             onValueChange = viewModel::setLogbookSearchQuery,
-                            placeholder = { Text("Buscar por título o mes (ej: Marzo)...") },
+                            placeholder = { Text("Buscar por título o contenido...") },
                             leadingIcon = { Icon(imageVector = Icons.Default.Search, contentDescription = null) },
                             trailingIcon = {
                                 if (searchQuery.isNotEmpty()) {
@@ -196,18 +198,50 @@ fun StudentScreen(
                             shape = RoundedCornerShape(12.dp)
                         )
 
+                        // Month Dropdown & Status Filter Chips
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(text = "Estado:", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold)
-                            LogbookStatusFilter.entries.forEach { filter ->
-                                FilterChip(
-                                    selected = statusFilter == filter,
-                                    onClick = { viewModel.setLogbookStatusFilter(filter) },
-                                    label = { Text(filter.label) }
-                                )
+                            Box(modifier = Modifier.weight(1f)) {
+                                OutlinedButton(
+                                    onClick = { monthDropdownExpanded = true },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    shape = RoundedCornerShape(10.dp)
+                                ) {
+                                    Icon(imageVector = Icons.Default.CalendarMonth, contentDescription = null, modifier = Modifier.size(18.dp))
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(text = "Mes: $selectedMonthFilter", maxLines = 1)
+                                }
+
+                                DropdownMenu(
+                                    expanded = monthDropdownExpanded,
+                                    onDismissRequest = { monthDropdownExpanded = false }
+                                ) {
+                                    viewModel.monthOptions.forEach { monthOption ->
+                                        DropdownMenuItem(
+                                            text = { Text(monthOption) },
+                                            onClick = {
+                                                viewModel.setSelectedMonthFilter(monthOption)
+                                                monthDropdownExpanded = false
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                LogbookStatusFilter.entries.forEach { filter ->
+                                    FilterChip(
+                                        selected = statusFilter == filter,
+                                        onClick = { viewModel.setLogbookStatusFilter(filter) },
+                                        label = { Text(filter.label, style = MaterialTheme.typography.labelSmall) }
+                                    )
+                                }
                             }
                         }
 

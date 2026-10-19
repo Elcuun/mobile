@@ -10,6 +10,10 @@ import kotlinx.coroutines.flow.asStateFlow
 import org.json.JSONArray
 import org.json.JSONObject
 
+/**
+ * Repositorio encargado de la gestión y autenticación de usuarios (Docentes, Estudiantes y Apoderados).
+ * Guarda las cuentas registradas y la sesión activa mediante SharedPreferences.
+ */
 class UserRepository private constructor(context: Context) {
 
     private val prefs: SharedPreferences = context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -22,6 +26,10 @@ class UserRepository private constructor(context: Context) {
         restoreSession()
     }
 
+    /**
+     * Inicializa las cuentas demo en la aplicación si no se encuentran previamente guardadas.
+     * Incluye al menos 8 cuentas ficticias (Docentes, Estudiantes y Apoderados).
+     */
     private fun initDefaultUsersIfNeeded() {
         val users = getUsers()
         val defaultUsers = listOf(
@@ -56,6 +64,38 @@ class UserRepository private constructor(context: Context) {
                 password = "123456",
                 role = Role.ALUMNO,
                 courseId = 4L // 8.º Básico A
+            ),
+            User(
+                firstName = "Mateo",
+                lastName = "Morales",
+                email = "estudiante3@duoc.cl",
+                password = "123456",
+                role = Role.ALUMNO,
+                courseId = 2L // 6.º Básico A
+            ),
+            User(
+                firstName = "Sofía",
+                lastName = "Castro",
+                email = "estudiante4@duoc.cl",
+                password = "123456",
+                role = Role.ALUMNO,
+                courseId = 3L // 7.º Básico A
+            ),
+            User(
+                firstName = "Juan",
+                lastName = "Soto",
+                email = "apoderado@duoc.cl",
+                password = "123456",
+                role = Role.APODERADO,
+                courseId = null
+            ),
+            User(
+                firstName = "Ana",
+                lastName = "Pérez",
+                email = "apoderado2@duoc.cl",
+                password = "123456",
+                role = Role.APODERADO,
+                courseId = null
             )
         )
 
@@ -71,6 +111,9 @@ class UserRepository private constructor(context: Context) {
         }
     }
 
+    /**
+     * Obtiene la lista de usuarios registrados almacenada en SharedPreferences.
+     */
     private fun getUsers(): MutableList<User> {
         val usersJson = prefs.getString(KEY_USERS, "[]") ?: "[]"
         val users = mutableListOf<User>()
@@ -97,6 +140,9 @@ class UserRepository private constructor(context: Context) {
         return users
     }
 
+    /**
+     * Guarda la lista de usuarios en formato JSON en SharedPreferences.
+     */
     private fun saveUsers(users: List<User>) {
         val jsonArray = JSONArray()
         for (user in users) {
@@ -114,6 +160,9 @@ class UserRepository private constructor(context: Context) {
         prefs.edit().putString(KEY_USERS, jsonArray.toString()).apply()
     }
 
+    /**
+     * Restaura la sesión del usuario si existe un correo activo guardado en SharedPreferences.
+     */
     private fun restoreSession() {
         val activeEmail = prefs.getString(KEY_LOGGED_IN_EMAIL, null)
         if (!activeEmail.isNullOrBlank()) {
@@ -122,6 +171,9 @@ class UserRepository private constructor(context: Context) {
         }
     }
 
+    /**
+     * Registra un nuevo usuario en la aplicación validando que el correo no exista.
+     */
     fun register(
         firstName: String,
         lastName: String,
@@ -149,11 +201,13 @@ class UserRepository private constructor(context: Context) {
         users.add(newUser)
         saveUsers(users)
 
-        // Set as logged in user
         setSession(newUser)
         return Result.success(newUser)
     }
 
+    /**
+     * Inicia sesión con credenciales y verifica que el rol ingresado coincida con el perfil guardado.
+     */
     fun login(
         email: String,
         password: String,
@@ -179,20 +233,26 @@ class UserRepository private constructor(context: Context) {
         return Result.success(matchedUser)
     }
 
+    /**
+     * Establce el usuario en sesión activa.
+     */
     private fun setSession(user: User) {
         prefs.edit().putString(KEY_LOGGED_IN_EMAIL, user.email).apply()
         _currentUser.value = user
     }
 
+    /**
+     * Cierra la sesión activa del usuario.
+     */
     fun logout() {
         prefs.edit().remove(KEY_LOGGED_IN_EMAIL).apply()
         _currentUser.value = null
     }
 
     companion object {
-        private const val PREFS_NAME = "app_user_prefs_v2"
-        private const val KEY_USERS = "registered_users_v2"
-        private const val KEY_LOGGED_IN_EMAIL = "logged_in_user_email_v2"
+        private const val PREFS_NAME = "app_user_prefs_v3"
+        private const val KEY_USERS = "registered_users_v3"
+        private const val KEY_LOGGED_IN_EMAIL = "logged_in_user_email_v3"
 
         @Volatile
         private var INSTANCE: UserRepository? = null

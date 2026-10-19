@@ -2,10 +2,12 @@ package duoc.cl.ui.student
 
 import android.Manifest
 import android.content.pm.PackageManager
+import android.graphics.BitmapFactory
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -14,14 +16,14 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import android.graphics.BitmapFactory
-import androidx.compose.foundation.Image
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
@@ -46,7 +48,7 @@ fun SubmitEntryScreen(
     val entries by viewModel.getEntriesForLogbook(logbook.id).collectAsState(initial = emptyList())
     val scrollState = rememberScrollState()
 
-    var tempPhotoUri by remember { mutableStateOf<Uri?>(null) }
+    var tempPhotoUriString by rememberSaveable { mutableStateOf<String?>(null) }
 
     LaunchedEffect(currentUser) {
         if (currentUser != null && formState.studentName.isBlank()) {
@@ -65,17 +67,31 @@ fun SubmitEntryScreen(
     }
 
     val cameraLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { success ->
-        if (success) {
-            viewModel.setPhotoUri(tempPhotoUri.toString())
+        if (success && !tempPhotoUriString.isNullOrBlank()) {
+            viewModel.setPhotoUri(tempPhotoUriString)
+        }
+    }
+
+    val galleryLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
+        if (uri != null) {
+            viewModel.setPhotoUri(uri.toString())
+        }
+    }
+
+    fun launchCamera() {
+        try {
+            val photoFile = File(context.cacheDir, "evidence_${System.currentTimeMillis()}.jpg")
+            val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", photoFile)
+            tempPhotoUriString = uri.toString()
+            cameraLauncher.launch(uri)
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
     }
 
     val cameraPermissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         if (granted) {
-            val photoFile = File(context.cacheDir, "evidence_${System.currentTimeMillis()}.jpg")
-            val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", photoFile)
-            tempPhotoUri = uri
-            cameraLauncher.launch(uri)
+            launchCamera()
         }
     }
 
@@ -191,6 +207,10 @@ fun SubmitEntryScreen(
                             if (entry.doubts.isNotBlank()) {
                                 Text(text = "Dudas: ${entry.doubts}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
                             }
+                            if (!entry.photoUri.isNullOrBlank()) {
+                                Spacer(modifier = Modifier.height(8.dp))
+                                PhotoPreview(photoUriString = entry.photoUri, maxHeight = 140.dp)
+                            }
                             if (!entry.feedback.isNullOrBlank()) {
                                 Spacer(modifier = Modifier.height(6.dp))
                                 Surface(
@@ -288,19 +308,16 @@ fun SubmitEntryScreen(
                 minLines = 2
             )
 
-            Text(text = "Recursos del Dispositivo", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+            Text(text = "Recursos del Dispositivo (Evidencia Foto / GPS)", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 OutlinedButton(
                     onClick = {
                         if (ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
-                            val photoFile = File(context.cacheDir, "evidence_${System.currentTimeMillis()}.jpg")
-                            val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", photoFile)
-                            tempPhotoUri = uri
-                            cameraLauncher.launch(uri)
+                            launchCamera()
                         } else {
                             cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
                         }
@@ -308,9 +325,19 @@ fun SubmitEntryScreen(
                     modifier = Modifier.weight(1f),
                     shape = RoundedCornerShape(12.dp)
                 ) {
-                    Icon(imageVector = Icons.Default.CameraAlt, contentDescription = null)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(text = if (formState.photoUri != null) "Foto OK" else "Tomar Foto")
+                    Icon(imageVector = Icons.Default.CameraAlt, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(text = "Camara", style = MaterialTheme.typography.labelMedium)
+                }
+
+                OutlinedButton(
+                    onClick = { galleryLauncher.launch("image/*") },
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Icon(imageVector = Icons.Default.PhotoLibrary, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(text = "Galeria", style = MaterialTheme.typography.labelMedium)
                 }
 
                 OutlinedButton(
@@ -322,15 +349,31 @@ fun SubmitEntryScreen(
                     modifier = Modifier.weight(1f),
                     shape = RoundedCornerShape(12.dp)
                 ) {
-                    Icon(imageVector = Icons.Default.LocationOn, contentDescription = null)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(text = if (formState.latitude != null) "GPS OK" else "Obtener GPS")
+                    Icon(imageVector = Icons.Default.LocationOn, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(text = "GPS", style = MaterialTheme.typography.labelMedium)
                 }
             }
 
             AnimatedVisibility(visible = formState.photoUri != null) {
                 formState.photoUri?.let { uriStr ->
-                    PhotoPreview(photoUriString = uriStr)
+                    Column {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(text = "Vista previa de imagen:", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+                            IconButton(
+                                onClick = { viewModel.setPhotoUri(null) },
+                                modifier = Modifier.size(24.dp)
+                            ) {
+                                Icon(imageVector = Icons.Default.Close, contentDescription = "Quitar foto")
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(4.dp))
+                        PhotoPreview(photoUriString = uriStr, maxHeight = 180.dp)
+                    }
                 }
             }
 
@@ -368,15 +411,28 @@ fun SubmitEntryScreen(
 }
 
 @Composable
-fun PhotoPreview(photoUriString: String) {
+fun PhotoPreview(
+    photoUriString: String,
+    modifier: Modifier = Modifier,
+    maxHeight: Dp = 180.dp
+) {
     val context = LocalContext.current
     val bitmap = remember(photoUriString) {
         try {
             val uri = Uri.parse(photoUriString)
-            val inputStream = context.contentResolver.openInputStream(uri)
-            val bm = BitmapFactory.decodeStream(inputStream)
-            inputStream?.close()
-            bm?.asImageBitmap()
+            if (uri.scheme == "content" || uri.scheme == "file") {
+                val inputStream = context.contentResolver.openInputStream(uri)
+                val bm = BitmapFactory.decodeStream(inputStream)
+                inputStream?.close()
+                bm?.asImageBitmap()
+            } else {
+                val file = File(photoUriString)
+                if (file.exists()) {
+                    BitmapFactory.decodeFile(file.absolutePath)?.asImageBitmap()
+                } else {
+                    null
+                }
+            }
         } catch (e: Exception) {
             e.printStackTrace()
             null
@@ -385,9 +441,9 @@ fun PhotoPreview(photoUriString: String) {
 
     if (bitmap != null) {
         Card(
-            modifier = Modifier
+            modifier = modifier
                 .fillMaxWidth()
-                .height(180.dp),
+                .height(maxHeight),
             shape = RoundedCornerShape(12.dp)
         ) {
             Image(
